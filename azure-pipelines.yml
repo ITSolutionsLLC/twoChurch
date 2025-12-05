@@ -1,0 +1,101 @@
+# Azure DevOps Main Pipeline for twoChurch
+# This pipeline orchestrates builds for both web and mobile applications
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - feature/*
+      - hotfix/*
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  nodeVersion: '20.x'
+
+stages:
+  - stage: Validate
+    displayName: 'Validate Code'
+    jobs:
+      - job: LintAndFormat
+        displayName: 'Lint and Format Check'
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - task: Npm@1
+            displayName: 'Install Dependencies'
+            inputs:
+              command: 'ci'
+
+          - task: Npm@1
+            displayName: 'Run Linter'
+            inputs:
+              command: 'custom'
+              customCommand: 'run lint'
+
+          - task: Npm@1
+            displayName: 'Run Tests'
+            inputs:
+              command: 'custom'
+              customCommand: 'run test'
+
+  - stage: BuildWeb
+    displayName: 'Build Web Application'
+    dependsOn: Validate
+    jobs:
+      - template: azure-pipelines-web.yml
+
+  - stage: BuildMobile
+    displayName: 'Build Mobile Application'
+    dependsOn: Validate
+    jobs:
+      - template: azure-pipelines-mobile.yml
+
+  - stage: SecurityScan
+    displayName: 'Security Scanning'
+    dependsOn: 
+      - BuildWeb
+      - BuildMobile
+    jobs:
+      - job: SecurityCheck
+        displayName: 'Run Security Scans'
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - task: Npm@1
+            displayName: 'Install Dependencies'
+            inputs:
+              command: 'ci'
+
+          - script: |
+              npm audit
+            displayName: 'NPM Audit'
+            continueOnError: true
+
+  - stage: Notification
+    displayName: 'Send Notifications'
+    dependsOn:
+      - BuildWeb
+      - BuildMobile
+      - SecurityScan
+    condition: always()
+    jobs:
+      - job: NotifyTeam
+        displayName: 'Notify Build Status'
+        steps:
+          - script: echo "Send notification to team about build status"
+            displayName: 'Send Notification'

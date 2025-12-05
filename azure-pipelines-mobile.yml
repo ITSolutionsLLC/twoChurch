@@ -1,0 +1,117 @@
+# Azure DevOps Pipeline for twoChurch Mobile App
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - apps/mobile/**
+      - packages/**
+      - azure-pipelines-mobile.yml
+
+pool:
+  vmImage: 'macos-latest'
+
+variables:
+  nodeVersion: '20.x'
+  workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+stages:
+  - stage: Build
+    displayName: 'Build Mobile Application'
+    jobs:
+      - job: BuildAndroid
+        displayName: 'Build Android App'
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - task: Npm@1
+            displayName: 'Install Dependencies'
+            inputs:
+              command: 'ci'
+              workingDir: $(workingDirectory)
+
+          - script: |
+              npx expo install
+            displayName: 'Install Expo Dependencies'
+            workingDirectory: $(workingDirectory)/apps/mobile
+
+          - task: Npm@1
+            displayName: 'Run Lint'
+            inputs:
+              command: 'custom'
+              customCommand: 'run lint'
+              workingDir: $(workingDirectory)/apps/mobile
+
+          - script: |
+              echo "Build Android APK/AAB with EAS Build or expo build:android"
+            displayName: 'Build Android App'
+            workingDirectory: $(workingDirectory)/apps/mobile
+
+      - job: BuildiOS
+        displayName: 'Build iOS App'
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - task: Npm@1
+            displayName: 'Install Dependencies'
+            inputs:
+              command: 'ci'
+              workingDir: $(workingDirectory)
+
+          - script: |
+              npx expo install
+            displayName: 'Install Expo Dependencies'
+            workingDirectory: $(workingDirectory)/apps/mobile
+
+          - script: |
+              echo "Build iOS IPA with EAS Build or expo build:ios"
+            displayName: 'Build iOS App'
+            workingDirectory: $(workingDirectory)/apps/mobile
+
+  - stage: Test
+    displayName: 'Run Tests'
+    dependsOn: Build
+    jobs:
+      - job: TestJob
+        displayName: 'Run Unit Tests'
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - task: Npm@1
+            displayName: 'Install Dependencies'
+            inputs:
+              command: 'ci'
+              workingDir: $(workingDirectory)
+
+          - task: Npm@1
+            displayName: 'Run Tests'
+            inputs:
+              command: 'custom'
+              customCommand: 'run test'
+              workingDir: $(workingDirectory)/apps/mobile
+
+  - stage: Deploy
+    displayName: 'Deploy to Stores'
+    dependsOn: Test
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployMobile
+        displayName: 'Deploy Mobile App'
+        environment: 'production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: echo "Deploy to App Store and Google Play"
+                  displayName: 'Publish to Stores'

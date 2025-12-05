@@ -1,0 +1,111 @@
+# Azure DevOps Pipeline for twoChurch Web App
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - apps/web/**
+      - packages/**
+      - azure-pipelines-web.yml
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  nodeVersion: '20.x'
+  workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+stages:
+  - stage: Build
+    displayName: 'Build Web Application'
+    jobs:
+      - job: BuildJob
+        displayName: 'Build Next.js App'
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - task: Npm@1
+            displayName: 'Install Dependencies'
+            inputs:
+              command: 'ci'
+              workingDir: $(workingDirectory)
+
+          - task: Npm@1
+            displayName: 'Build Web App'
+            inputs:
+              command: 'custom'
+              customCommand: 'run web:build'
+              workingDir: $(workingDirectory)
+
+          - task: Npm@1
+            displayName: 'Run Lint'
+            inputs:
+              command: 'custom'
+              customCommand: 'run lint'
+              workingDir: $(workingDirectory)
+
+          - task: CopyFiles@2
+            displayName: 'Copy Build Artifacts'
+            inputs:
+              SourceFolder: '$(workingDirectory)/apps/web/.next'
+              Contents: '**'
+              TargetFolder: '$(Build.ArtifactStagingDirectory)/web'
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Artifacts'
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: 'web-app'
+
+  - stage: Test
+    displayName: 'Run Tests'
+    dependsOn: Build
+    jobs:
+      - job: TestJob
+        displayName: 'Run Unit Tests'
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - task: Npm@1
+            displayName: 'Install Dependencies'
+            inputs:
+              command: 'ci'
+              workingDir: $(workingDirectory)
+
+          - task: Npm@1
+            displayName: 'Run Tests'
+            inputs:
+              command: 'custom'
+              customCommand: 'run test'
+              workingDir: $(workingDirectory)
+
+  - stage: Deploy
+    displayName: 'Deploy to Production'
+    dependsOn: Test
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployWeb
+        displayName: 'Deploy Web App'
+        environment: 'production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadBuildArtifacts@1
+                  displayName: 'Download Artifacts'
+                  inputs:
+                    buildType: 'current'
+                    downloadType: 'single'
+                    artifactName: 'web-app'
+                    downloadPath: '$(System.ArtifactsDirectory)'
+
+                - script: echo "Deploy to hosting service (Vercel, Azure App Service, etc.)"
+                  displayName: 'Deploy Application'
