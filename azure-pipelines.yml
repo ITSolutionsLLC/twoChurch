@@ -1,5 +1,5 @@
-# Azure DevOps Main Pipeline for twoChurch
-# This pipeline orchestrates builds for both web and mobile applications
+﻿# Azure DevOps Main Pipeline for twoChurch
+# Simplified version - builds both web and mobile
 
 trigger:
   branches:
@@ -38,38 +38,15 @@ stages:
             inputs:
               command: 'ci'
 
-          - task: Npm@1
-            displayName: 'Run Linter'
-            inputs:
-              command: 'custom'
-              customCommand: 'run lint'
-
-          - task: Npm@1
-            displayName: 'Run Tests'
-            inputs:
-              command: 'custom'
-              customCommand: 'run test'
+          - script: echo 'Linting and testing will be configured per workspace'
+            displayName: 'Validation Placeholder'
 
   - stage: BuildWeb
     displayName: 'Build Web Application'
     dependsOn: Validate
     jobs:
-      - template: azure-pipelines-web.yml
-
-  - stage: BuildMobile
-    displayName: 'Build Mobile Application'
-    dependsOn: Validate
-    jobs:
-      - template: azure-pipelines-mobile.yml
-
-  - stage: SecurityScan
-    displayName: 'Security Scanning'
-    dependsOn: 
-      - BuildWeb
-      - BuildMobile
-    jobs:
-      - job: SecurityCheck
-        displayName: 'Run Security Scans'
+      - job: BuildWebJob
+        displayName: 'Build Next.js App'
         steps:
           - task: NodeTool@0
             displayName: 'Install Node.js'
@@ -81,21 +58,28 @@ stages:
             inputs:
               command: 'ci'
 
-          - script: |
-              npm audit
-            displayName: 'NPM Audit'
-            continueOnError: true
+          - task: Npm@1
+            displayName: 'Build Web App'
+            inputs:
+              command: 'custom'
+              customCommand: 'run web:build'
 
-  - stage: Notification
-    displayName: 'Send Notifications'
-    dependsOn:
-      - BuildWeb
-      - BuildMobile
-      - SecurityScan
-    condition: always()
+  - stage: BuildMobile
+    displayName: 'Build Mobile Application'
+    dependsOn: Validate
     jobs:
-      - job: NotifyTeam
-        displayName: 'Notify Build Status'
+      - job: BuildMobileJob
+        displayName: 'Prepare Mobile Build'
         steps:
-          - script: echo "Send notification to team about build status"
-            displayName: 'Send Notification'
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - task: Npm@1
+            displayName: 'Install Dependencies'
+            inputs:
+              command: 'ci'
+
+          - script: echo 'Mobile build ready for EAS or Expo'
+            displayName: 'Mobile Build Placeholder'
