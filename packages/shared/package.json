@@ -1,0 +1,20 @@
+{
+  "name": "@twochurch/shared",
+  "version": "1.0.0",
+  "description": "Shared business logic and utilities",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "jest"
+  },
+  "keywords": ["shared", "utilities"],
+  "author": "IT Solutions LLC",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}

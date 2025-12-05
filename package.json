@@ -1,0 +1,29 @@
+{
+  "name": "twochurch",
+  "version": "1.0.0",
+  "description": "twoChurch - Church Management Platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "web": "npm run dev --workspace=@twochurch/web",
+    "mobile": "npm run start --workspace=@twochurch/mobile",
+    "web:build": "npm run build --workspace=@twochurch/web",
+    "mobile:build": "npm run build --workspace=@twochurch/mobile",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces"
+  },
+  "keywords": [
+    "church",
+    "management",
+    "platform"
+  ],
+  "author": "IT Solutions LLC",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}
